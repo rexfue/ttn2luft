@@ -1,0 +1,13 @@
+FROM node:alpine
+
+ADD package_ttn2luft.json /tmp/package.json
+RUN cd /tmp && npm install
+RUN mkdir -p /opt/app && cp -a /tmp/node_modules /tmp/package.json /opt/app/
+WORKDIR /opt/app
+ADD server.js /opt/app/
+
+RUN touch cmds.sh \
+	&& echo 'npm start' >cmds.sh
+EXPOSE 3010
+CMD sh ./cmds.sh
+
