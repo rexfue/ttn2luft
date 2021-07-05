@@ -1,5 +1,7 @@
 // Wait for http-Post requests, analyse the data and send it to luftdaten.info
 
+// Adapted to TTN-V3 protocol   2021-07-05 rxf
+
 // contants
 const LUFTDATEN = "http://api.sensor.community/v1/push-sensor-data/"
 const TOILET = "http://ptsv2.com/t/enbwck3/post"
@@ -19,7 +21,11 @@ const express = require('express'),
 app.post('/', express.json({type:'application/json'}), (req,res) => {
     res.sendStatus(200);
     let sid = (req.headers['x-ssid'] != undefined) ?  req.headers['x-ssid'] : (req.headers['x-sid'] != undefined) ? req.headers['x-sid'] : "0";
-    doParse(req.body, parseInt(sid)) ;
+    if (req.body.end_device_ids != undefined) {
+        doParseV3(req.body, parseInt(sid));
+    } else {
+        doParseV2(req.body, parseInt(sid));
+    }
 });
 
 app.listen(port);
@@ -27,7 +33,7 @@ app.listen(port);
 const now = moment().format("YYYY-MM-DD HH:mm");
 console.log(`${now} -- ttn2luft (V_${version}, ${v_date}) server started on: ${port}`);
 
-function doParse(body, sid) {
+function doParseV2(body, sid) {
     let values;
     let tosend;
     let chipid = parseInt(body.hardware_serial.substr(-8),16);
@@ -54,6 +60,37 @@ function doParse(body, sid) {
         if (debug) {
             console.log(tosend);
         }
+        sendTo(tosend,'11',chipid, sid);
+    }
+}
+
+function doParseV3(body, sid) {
+    let values;
+    let tosend;
+    let chipid = parseInt(body.end_device_ids.dev_eui.substr(-8),16);
+    console.log(`Chip-ID: ${chipid}`);
+    if(body.uplink_message.f_port == 1) {
+        values = parsePayloadGeiger(Buffer.from(body.uplink_message.frm_payload, 'base64'));
+        tosend = '{"sensordatavalues":['+
+            '{"value_type":"counts_per_minute","value":"'+values.cpm+'"},'+
+            '{"value_type":"counts","value":"'+values.count+'"},'+
+            '{"value_type":"sample_time_ms","value":"'+values.sample_time+'"}'+
+            '],'+
+            '"software_version":"V_'+values.software_version+'"}';
+//        if (debug) {
+            console.log(tosend);
+//        }
+        sendTo(tosend,'19',chipid, sid);
+    } else if(body.uplink_message.f_port == 2) {
+        values = parsePayloadBME280(Buffer.from(body.uplink_message.frm_payload, 'base64'));
+        tosend = '{"sensordatavalues":['+
+            '{"value_type":"temperature","value":"'+values.temperature+'"},'+
+            '{"value_type":"humidity","value":"'+values.humidity+'"},'+
+            '{"value_type":"pressure","value":"'+values.pressure+'"}'+
+            ']}';
+//        if (debug) {
+            console.log(tosend);
+//        }
         sendTo(tosend,'11',chipid, sid);
     }
 }
