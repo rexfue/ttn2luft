@@ -120,7 +120,11 @@ function parsePayloadBME280(buff) {
     }
     let ret = {};
     // temperature has 0.1°
-    ret.temperature = ((buff[0] << 8) + buff[1]) / 10 ;
+    let tmp = (buff[0] << 8) + buff[1];
+    if( buff[0] & 0x80) {
+        tmp |= 0xFFFF0000;
+    }
+    ret.temperature = tmp / 10 ;
     // humidity is in 0.5%
     ret.humidity = buff[2] / 2;
     // pressure is in 0.1 hPa, sensor.community expects Pa
