@@ -149,6 +149,7 @@ function sendTo(tosend, xpin, chipid, sid) {
         .then((res) => {
             const now = moment().format("YYYY-MM-DD HH:mm");
             console.log(`${now} -- ${id} ( sid = ${sid} ) sent to ${USEHOST} status: ${res.status} `);
+            console.log()
             if (debug) {
                 console.log(res);
             }
